@@ -263,6 +263,14 @@ input, select { font-family: var(--font-body); }
 .quote-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .quote-more { font-size: 12.5px; color: var(--ink-soft); }
 
+/* ---------------- ВАРИАНТЫ РАСКЛАДКИ (все комбинации в диапазоне) ---------------- */
+.variants-list { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.variant-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; }
+.variant-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.variant-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--forest-deep); }
+.variant-total { font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: var(--forest-deep); }
+.variant-meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
 /* ---------------- CARDS: LISTINGS / VOUCHERS ---------------- */
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 20px 20px 18px; box-shadow: var(--shadow-card); }

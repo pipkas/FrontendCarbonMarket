@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -69,31 +69,43 @@
       <h2 class="finder-title">Найти предложение под вашу задачу</h2>
       <div class="grid-2">
         <form id="find-by-quantity-form" class="panel">
-          <h3>Нужен точный объём</h3>
-          <p class="panel-desc">Укажите, сколько углеродных единиц вам нужно — покажем лучшие подходящие предложения.</p>
-          <label class="field">
-            <span>Количество УЕ</span>
-            <input type="number" name="quantity_needed" min="0" step="1" required placeholder="например, 800">
-          </label>
+          <h3>Нужен объём в диапазоне</h3>
+          <p class="panel-desc">Укажите, от скольки до скольки УЕ вам подойдёт — покажем все варианты раскладок из доступных предложений, которые попадают в этот диапазон.</p>
+          <div class="field-row">
+            <label class="field">
+              <span>От, УЕ</span>
+              <input type="number" name="quantity_min" min="0" step="1" required placeholder="например, 500">
+            </label>
+            <label class="field">
+              <span>До, УЕ</span>
+              <input type="number" name="quantity_max" min="0" step="1" required placeholder="например, 800">
+            </label>
+          </div>
           <details class="filters">
             <summary>Уточнить характеристики</summary>
             <div class="filters-grid" data-filter-fields></div>
           </details>
-          <button class="btn btn--primary" type="submit">Показать предложения</button>
+          <button class="btn btn--primary" type="submit">Показать все варианты</button>
         </form>
 
         <form id="find-by-budget-form" class="panel">
-          <h3>Есть сумма для покупки</h3>
-          <p class="panel-desc">Укажите бюджет — покажем, сколько единиц можно получить и по какой цене.</p>
-          <label class="field">
-            <span>Бюджет, ₽</span>
-            <input type="number" name="budget_amount" min="0" step="1" required placeholder="например, 100000">
-          </label>
+          <h3>Есть бюджет в диапазоне</h3>
+          <p class="panel-desc">Укажите, сколько готовы потратить — от и до — покажем все варианты того, что можно купить именно на эту сумму.</p>
+          <div class="field-row">
+            <label class="field">
+              <span>От, ₽</span>
+              <input type="number" name="budget_min" min="0" step="1" required placeholder="например, 50000">
+            </label>
+            <label class="field">
+              <span>До, ₽</span>
+              <input type="number" name="budget_max" min="0" step="1" required placeholder="например, 100000">
+            </label>
+          </div>
           <details class="filters">
             <summary>Уточнить характеристики</summary>
             <div class="filters-grid" data-filter-fields></div>
           </details>
-          <button class="btn btn--primary" type="submit">Показать предложения</button>
+          <button class="btn btn--primary" type="submit">Показать все варианты</button>
         </form>
       </div>
 
@@ -266,70 +278,6 @@
     <div id="seller-modal-content">
       <p class="empty-row">Загружаю…</p>
     </div>
-  </div>
-</div>
-
-<!-- ============== МОДАЛКА АВТОРИЗАЦИИ (скрыта, открывается кнопкой «Войти») ============== -->
-<div class="modal-overlay" id="auth-modal-overlay" hidden>
-  <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-    <button class="modal-close" id="close-auth-btn" aria-label="Закрыть">✕</button>
-
-    <div class="seal seal--lg" aria-hidden="true">
-      <svg viewBox="0 0 120 120"><path d="M 60,60 m -46,0 a 46,46 0 1,1 92,0 a 46,46 0 1,1 -92,0"/></svg>
-      <span class="seal-year">УЕ</span>
-    </div>
-    <h2 id="auth-modal-title" class="auth-title">Вход в аккаунт</h2>
-    <p id="auth-modal-note" class="auth-sub" hidden></p>
-
-    <div class="tabbar" role="tablist">
-      <button class="tabbar-btn is-active" data-authtab="login" role="tab">Вход</button>
-      <button class="tabbar-btn" data-authtab="register" role="tab">Регистрация</button>
-    </div>
-
-    <form id="login-form" class="stack">
-      <label class="field">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email">
-      </label>
-      <label class="field">
-        <span>Пароль</span>
-        <input type="password" name="password" required autocomplete="current-password">
-      </label>
-      <button class="btn btn--primary" type="submit">Войти</button>
-    </form>
-
-    <form id="register-form" class="stack" hidden>
-      <label class="field">
-        <span>Тип участника</span>
-        <select name="user_type">
-          <option value="INDIVIDUAL">Физическое лицо</option>
-          <option value="LEGAL_ENTITY">Юридическое лицо</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>ФИО / Название организации</span>
-        <input type="text" name="display_name" required>
-      </label>
-      <label class="field" data-legal-only hidden>
-        <span>ИНН</span>
-        <input type="text" name="inn">
-      </label>
-      <label class="field" data-legal-only hidden>
-        <span>ОГРН</span>
-        <input type="text" name="ogrn">
-      </label>
-      <label class="field">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email">
-      </label>
-      <label class="field">
-        <span>Пароль</span>
-        <input type="password" name="password" required autocomplete="new-password">
-      </label>
-      <button class="btn btn--primary" type="submit">Зарегистрироваться</button>
-    </form>
-
-    <p id="auth-error" class="auth-error" hidden></p>
   </div>
 </div>
 

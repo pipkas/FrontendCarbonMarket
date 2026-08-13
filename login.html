@@ -45,7 +45,7 @@
 
   .login-card {
     width: 100%;
-    max-width: 420px;
+    max-width: 460px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
@@ -73,6 +73,103 @@
     padding: 10px 12px;
     font-size: 13.5px;
     text-align: left;
+  }
+
+  .demo-login {
+    margin: -2px 0 4px;
+  }
+
+  .demo-login-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .demo-login-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--forest-deep);
+  }
+
+  .demo-login-password {
+    font-size: 12px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  .demo-login-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .demo-account {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    align-items: center;
+    padding: 10px 12px;
+    text-align: left;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+  }
+
+  .demo-account:hover {
+    background: var(--surface);
+    border-color: var(--forest);
+  }
+
+  .demo-account[disabled] {
+    opacity: .58;
+    cursor: not-allowed;
+  }
+
+  .demo-account-role {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--forest-deep);
+  }
+
+  .demo-account-name {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .demo-account-email {
+    grid-row: span 2;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--forest);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 440px) {
+    .login-card {
+      padding: 32px 22px 28px;
+    }
+
+    .demo-login-top,
+    .demo-account {
+      grid-template-columns: 1fr;
+    }
+
+    .demo-login-top {
+      display: grid;
+      gap: 2px;
+    }
+
+    .demo-login-password,
+    .demo-account-email {
+      white-space: normal;
+    }
+
+    .demo-account-email {
+      grid-row: auto;
+    }
   }
 
   .login-footer {
@@ -108,6 +205,29 @@
 
     <!-- Форма входа -->
     <form id="login-form" class="stack">
+      <div class="demo-login" aria-label="Демо-доступы">
+        <div class="demo-login-top">
+          <span class="demo-login-title">Демо-аккаунты</span>
+          <span class="demo-login-password">пароль: <code>demo1234</code></span>
+        </div>
+        <div class="demo-login-list">
+          <button class="demo-account" type="button" data-demo-account="buyer" aria-label="Войти как покупатель Иван Иванов">
+            <span class="demo-account-role">Покупатель</span>
+            <span class="demo-account-email">buyer@example.com</span>
+            <span class="demo-account-name">Иван Иванов</span>
+          </button>
+          <button class="demo-account" type="button" data-demo-account="buyer2" aria-label="Войти как покупатель ООО Карбон Трейд">
+            <span class="demo-account-role">Покупатель ЮЛ</span>
+            <span class="demo-account-email">buyer2@example.com</span>
+            <span class="demo-account-name">ООО Карбон Трейд</span>
+          </button>
+          <button class="demo-account" type="button" data-demo-account="seller" aria-label="Войти как продавец ООО Зелёный Лес">
+            <span class="demo-account-role">Продавец</span>
+            <span class="demo-account-email">seller@example.com</span>
+            <span class="demo-account-name">ООО Зелёный Лес</span>
+          </button>
+        </div>
+      </div>
       <label class="field">
         <span>Email</span>
         <input type="email" name="email" required autocomplete="email" placeholder="your@email.com">
@@ -117,7 +237,6 @@
         <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
       </label>
       <button class="btn btn--primary" type="submit">Войти</button>
-      <p class="hint">Демо-доступ: <code>buyer@example.com</code> или <code>seller@example.com</code>, пароль <code>demo1234</code></p>
     </form>
 
     <!-- Форма регистрации -->
@@ -198,6 +317,25 @@
     el.hidden = false;
   }
 
+  const DEMO_ACCOUNTS = {
+    buyer: { email: "buyer@example.com", password: "demo1234" },
+    buyer2: { email: "buyer2@example.com", password: "demo1234" },
+    seller: { email: "seller@example.com", password: "demo1234" },
+  };
+
+  const loginForm = document.getElementById("login-form");
+
+  function fillLoginForm(account) {
+    loginForm.elements.email.value = account.email;
+    loginForm.elements.password.value = account.password;
+  }
+
+  function setLoginBusy(isBusy) {
+    loginForm.querySelectorAll("input, button").forEach((el) => {
+      el.disabled = isBusy;
+    });
+  }
+
   async function apiFetch(path, body) {
     const res = await fetch(apiUrl(path), {
       method: "POST",
@@ -225,18 +363,39 @@
     window.location.replace("index.html");
   }
 
-  document.getElementById("login-form").addEventListener("submit", async (e) => {
+  async function loginWithCredentials(email, password) {
+    const data = await apiFetch("/auth/login", { email, password });
+    onSuccess(data);
+  }
+
+  loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      const data = await apiFetch("/auth/login", {
-        email: fd.get("email"),
-        password: fd.get("password"),
-      });
-      onSuccess(data);
+      setLoginBusy(true);
+      await loginWithCredentials(fd.get("email"), fd.get("password"));
     } catch (err) {
       showError(err.message);
+    } finally {
+      setLoginBusy(false);
     }
+  });
+
+  document.querySelectorAll("[data-demo-account]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const account = DEMO_ACCOUNTS[btn.dataset.demoAccount];
+      if (!account) return;
+      fillLoginForm(account);
+      document.getElementById("auth-error").hidden = true;
+      try {
+        setLoginBusy(true);
+        await loginWithCredentials(account.email, account.password);
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        setLoginBusy(false);
+      }
+    });
   });
 
   document.getElementById("register-form").addEventListener("submit", async (e) => {

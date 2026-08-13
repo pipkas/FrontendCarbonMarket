@@ -16,11 +16,6 @@ const state = {
   user: JSON.parse(localStorage.getItem("cm_user") || "null"),
 };
 
-// Действие, отложенное до успешного входа (например, "купить", если
-// человек нажал «Купить», не будучи авторизован — после входа сразу
-// выполняем то, что он изначально хотел).
-let pendingAction = null;
-
 const PROJECT_TYPES = [
   ["", "Любой тип проекта"],
   ["RENEWABLE_ENERGY", "ВИЭ"],
@@ -106,106 +101,20 @@ function toast(message, isError = false) {
 }
 
 /* ============================================================
-   АВТОРИЗАЦИЯ: модалка по кнопке, меню профиля, requireAuth()
+   АВТОРИЗАЦИЯ: отдельная страница login.html, меню профиля, requireAuth()
    ============================================================ */
 
-function initAuthTabs() {
-  document.querySelectorAll("[data-authtab]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("[data-authtab]").forEach((b) => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      const target = btn.dataset.authtab;
-      document.getElementById("login-form").hidden = target !== "login";
-      document.getElementById("register-form").hidden = target !== "register";
-      document.getElementById("auth-error").hidden = true;
-    });
-  });
-
-  const userTypeSelect = document.querySelector('#register-form [name="user_type"]');
-  userTypeSelect.addEventListener("change", () => {
-    const isLegal = userTypeSelect.value === "LEGAL_ENTITY";
-    document.querySelectorAll("[data-legal-only]").forEach((el) => { el.hidden = !isLegal; });
-  });
+// Вход и регистрация больше не открываются модалкой поверх витрины —
+// это уводило людей на форму «войти», под которой сразу же висела форма
+// «зарегистрироваться», и выглядело некрасиво. Вместо этого ведём на
+// отдельную страницу login.html (она сама пишет токен в localStorage и
+// возвращает на index.html после успешного входа/регистрации).
+function goToLogin() {
+  window.location.href = "login.html";
 }
 
-function openAuthModal(note) {
-  const overlay = document.getElementById("auth-modal-overlay");
-  const noteEl = document.getElementById("auth-modal-note");
-  if (note) { noteEl.textContent = note; noteEl.hidden = false; } else { noteEl.hidden = true; }
-  document.getElementById("auth-error").hidden = true;
-  overlay.hidden = false;
-  document.body.style.overflow = "hidden";
-}
-
-// Закрывает окно, НЕ трогая pendingAction — оно должно пережить закрытие
-// модалки внутри onAuthSuccess (успешный вход выполняет отложенное
-// действие сразу после закрытия окна).
-function closeAuthModal() {
-  document.getElementById("auth-modal-overlay").hidden = true;
-  document.body.style.overflow = "";
-}
-
-// А это — явная отмена: человек закрыл окно сам, не завершив вход,
-// поэтому то, что он пытался сделать, тоже отменяем.
-function cancelAuthModal() {
-  closeAuthModal();
-  pendingAction = null;
-}
-
-document.getElementById("open-auth-btn").addEventListener("click", () => openAuthModal());
-document.getElementById("close-auth-btn").addEventListener("click", cancelAuthModal);
-document.getElementById("auth-modal-overlay").addEventListener("click", (e) => {
-  if (e.target.id === "auth-modal-overlay") cancelAuthModal();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !document.getElementById("auth-modal-overlay").hidden) cancelAuthModal();
-});
-document.querySelectorAll("[data-open-auth]").forEach((btn) => btn.addEventListener("click", () => openAuthModal()));
-
-function showAuthError(message) {
-  const el = document.getElementById("auth-error");
-  el.textContent = message;
-  el.hidden = false;
-}
-
-function onAuthSuccess(data) {
-  state.token = data.token;
-  state.user = { id: data.user_id, user_type: data.user_type, display_name: data.display_name };
-  localStorage.setItem("cm_token", state.token);
-  localStorage.setItem("cm_user", JSON.stringify(state.user));
-  closeAuthModal();
-  refreshAuthUI();
-  toast(`Добро пожаловать, ${state.user.display_name}!`);
-
-  if (pendingAction) {
-    const action = pendingAction;
-    pendingAction = null;
-    action();
-  } else {
-    loadListings();
-  }
-}
-
-document.getElementById("login-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  try {
-    const data = await api("/auth/login", { method: "POST", auth: false, body: { email: fd.get("email"), password: fd.get("password") } });
-    onAuthSuccess(data);
-  } catch (err) { showAuthError(err.message); }
-});
-
-document.getElementById("register-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  try {
-    const data = await api("/auth/register", { method: "POST", auth: false, body: {
-      email: fd.get("email"), password: fd.get("password"), user_type: fd.get("user_type"),
-      display_name: fd.get("display_name"), inn: fd.get("inn") || null, ogrn: fd.get("ogrn") || null,
-    }});
-    onAuthSuccess(data);
-  } catch (err) { showAuthError(err.message); }
-});
+document.getElementById("open-auth-btn").addEventListener("click", goToLogin);
+document.querySelectorAll("[data-open-auth]").forEach((btn) => btn.addEventListener("click", goToLogin));
 
 /* --- меню профиля --- */
 document.getElementById("user-chip-btn").addEventListener("click", (e) => {
@@ -243,12 +152,13 @@ function refreshAuthUI() {
   renderAuthGates();
 }
 
-/** Требует авторизации для действия; если не авторизован — открывает
- *  модалку и откладывает действие на момент успешного входа. */
+/** Требует авторизации для действия: если человек уже вошёл — выполняет
+ *  действие сразу; если нет — уводит на страницу входа (само действие,
+ *  например «купить», нужно будет повторить уже после входа). */
 function requireAuth(action) {
   if (state.token) { action(); return; }
-  pendingAction = action;
-  openAuthModal("Войдите, чтобы завершить это действие.");
+  toast("Войдите, чтобы завершить это действие.");
+  goToLogin();
 }
 
 /* ============================================================
@@ -390,7 +300,9 @@ document.getElementById("refresh-listings").addEventListener("click", loadListin
 document.getElementById("apply-browse-filter").addEventListener("click", loadListings);
 
 /* ============================================================
-   ПОДБОР ПРЕДЛОЖЕНИЙ (превью топ-5 ДО покупки) — аккордеон-карточки
+   ПОДБОР ВСЕХ ВАРИАНТОВ В ЗАДАННОМ ДИАПАЗОНЕ (объём или бюджет) —
+   вместо одной «оптимальной» раскладки показываем ВСЕ комбинации
+   предложений, чья сумма (объём или цена) попадает в диапазон.
    ============================================================ */
 
 function quoteOfferCard(offer, idx) {
@@ -406,7 +318,7 @@ function quoteOfferCard(offer, idx) {
 
   return `
     <div class="qi" id="qi-${idx}">
-      <button class="qi-head" type="button" onclick="toggleQi(${idx})">
+      <button class="qi-head" type="button" onclick="toggleQi('${idx}')">
         <div class="qi-left">
           <div class="qi-project">${offer.characteristics.project_name || "Без названия проекта"} · ${offer.voucher_number}</div>
           <div class="qi-seller">
@@ -438,83 +350,202 @@ function toggleQi(idx) {
   if (chevron) chevron.style.transform = body.hidden ? "" : "rotate(180deg)";
 }
 
-function renderQuote(quote, mode, requestBody) {
-  const container = document.getElementById("quote-result");
+function pluralizeVoucher(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "вексель";
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "векселя";
+  return "векселей";
+}
 
-  if (!quote.offers.length) {
-    container.hidden = false;
-    container.innerHTML = `<p class="empty-row">Подходящих предложений не нашлось — попробуйте изменить количество, бюджет или характеристики.</p>`;
+/** Перебор всех подмножеств listings, чья сумма по sumFn попадает в
+ *  [min, max] — с отсечением веток (по максимально возможной сумме
+ *  оставшихся элементов) и с ограничением числа найденных вариантов /
+ *  посещённых узлов, чтобы не подвесить браузер на большом наборе
+ *  предложений. listings должны быть заранее отсортированы по sumFn. */
+function findCombosInRange(listings, sumFn, min, max, maxResults) {
+  const values = listings.map(sumFn);
+  const n = values.length;
+  const suffixMax = new Array(n + 1).fill(0);
+  for (let i = n - 1; i >= 0; i--) suffixMax[i] = suffixMax[i + 1] + values[i];
+
+  const VISIT_LIMIT = 150000;
+  const results = [];
+  let visited = 0;
+  let truncated = false;
+
+  function dfs(idx, chosen, sum) {
+    if (results.length >= maxResults) return;
+    if (visited > VISIT_LIMIT) { truncated = true; return; }
+    visited++;
+    if (sum > max) return; // уже перебор — дальше только больше
+    if (chosen.length && sum >= min) {
+      results.push(chosen.slice());
+      if (results.length >= maxResults) return;
+    }
+    if (idx >= n) return;
+    if (sum + suffixMax[idx] < min) return; // даже все оставшиеся не доберут до min
+
+    chosen.push(idx);
+    dfs(idx + 1, chosen, sum + values[idx]);
+    chosen.pop();
+    if (results.length >= maxResults) return;
+
+    dfs(idx + 1, chosen, sum);
+  }
+
+  dfs(0, [], 0);
+  return { combos: results, truncated: truncated || visited > VISIT_LIMIT };
+}
+
+/** Собирает все варианты покупки (комбинации объявлений), чей суммарный
+ *  объём (mode="quantity") или суммарная цена (mode="budget") попадает
+ *  в диапазон [min, max]. */
+function buildRangeVariants(listings, mode, min, max) {
+  const sumFn = mode === "quantity" ? (l) => l.quantity : (l) => l.fixed_price;
+  const sorted = [...listings].sort((a, b) => sumFn(a) - sumFn(b));
+
+  // Ограничиваем число объявлений, участвующих в переборе — иначе
+  // количество возможных комбинаций растёт экспоненциально.
+  const CANDIDATE_CAP = 26;
+  const candidates = sorted.slice(0, CANDIDATE_CAP);
+  const cappedByCandidates = sorted.length > CANDIDATE_CAP;
+
+  const MAX_VARIANTS = 40;
+  const { combos, truncated } = findCombosInRange(candidates, sumFn, min, max, MAX_VARIANTS);
+
+  const variants = combos.map((idxList) => {
+    const items = idxList.map((i) => candidates[i]);
+    return {
+      items,
+      total_quantity: items.reduce((s, l) => s + l.quantity, 0),
+      total_price: items.reduce((s, l) => s + l.fixed_price, 0),
+    };
+  });
+
+  if (mode === "budget") {
+    // Сначала — варианты, где за деньги в диапазоне получаешь больше УЕ.
+    variants.sort((a, b) => b.total_quantity - a.total_quantity || a.total_price - b.total_price);
+  } else {
+    // Сначала — варианты подешевле для нужного объёма.
+    variants.sort((a, b) => a.total_price - b.total_price || a.items.length - b.items.length);
+  }
+
+  return { variants, truncated: truncated || cappedByCandidates };
+}
+
+function renderVariants(variants, mode, range, truncated) {
+  const container = document.getElementById("quote-result");
+  container.hidden = false;
+
+  if (!variants.length) {
+    container.innerHTML = `<p class="empty-row">Ни одна комбинация предложений не попадает в заданный диапазон — попробуйте расширить диапазон или изменить характеристики.</p>`;
+    container.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
 
-  let warning = "";
-  if (mode === "quantity" && quote.unmet_quantity > 0) {
-    warning = `<div class="quote-warning">На рынке пока нет достаточного объёма: удастся набрать ${quote.total_quantity} из ${requestBody.quantity_needed} УЕ (векселя неделимы — точное совпадение не всегда возможно).</div>`;
-  }
-  if (mode === "budget" && quote.leftover_budget > 0) {
-    warning = `<div class="quote-warning">${quote.leftover_budget.toFixed(2)} ₽ из бюджета останется неизрасходовано — оставшиеся векселя дороже, чем этот остаток.</div>`;
-  }
+  const rangeLabel = mode === "quantity"
+    ? `от ${range.min} до ${range.max} УЕ`
+    : `от ${range.min.toFixed(2)} до ${range.max.toFixed(2)} ₽`;
 
-  container.hidden = false;
+  const variantsHtml = variants.map((v, vi) => {
+    const perUnit = v.total_quantity ? v.total_price / v.total_quantity : 0;
+    return `
+      <div class="variant-card">
+        <div class="variant-head">
+          <div class="variant-title">Вариант ${vi + 1}</div>
+          <div class="variant-total">${v.total_quantity} УЕ · ${v.total_price.toFixed(2)} ₽</div>
+        </div>
+        <div class="variant-meta">${v.items.length} ${pluralizeVoucher(v.items.length)} · в среднем ${perUnit.toFixed(2)} ₽/УЕ</div>
+        <div class="qi-list">${v.items.map((o, oi) => quoteOfferCard(o, `${vi}-${oi}`)).join("")}</div>
+        <div class="quote-foot" style="margin-top:14px">
+          <span></span>
+          <button class="btn btn--primary btn--sm" type="button" data-buy-variant="${vi}">Купить этот вариант · ${v.total_price.toFixed(2)} ₽</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
   container.innerHTML = `
     <div class="quote-head">
-      <h3>Оптимальная раскладка</h3>
-      <div class="quote-total">${quote.total_quantity} УЕ · ${quote.total_price.toFixed(2)} ₽</div>
+      <h3>Все подходящие варианты</h3>
+      <div class="quote-total">${variants.length} ${variants.length === 1 ? "вариант" : "вариантов"} · ${rangeLabel}</div>
     </div>
-    ${warning}
-    <div class="qi-list">${quote.offers.map((o, i) => quoteOfferCard(o, i)).join("")}</div>
-    <div class="quote-foot" style="margin-top:16px">
-      <span></span>
-      <button class="btn btn--primary" id="confirm-quote-btn">Подтвердить и купить ${quote.total_price.toFixed(2)} ₽</button>
-    </div>
+    ${truncated ? `<div class="quote-warning">Показаны не все возможные комбинации — предложений слишком много для полного перебора. Сузьте диапазон или уточните характеристики, чтобы увидеть более точный список.</div>` : ""}
+    <div class="variants-list">${variantsHtml}</div>
   `;
 
-  document.getElementById("confirm-quote-btn").addEventListener("click", () => {
-    requireAuth(() => doConfirmPurchase(mode, requestBody));
+  variants.forEach((v, vi) => {
+    container.querySelector(`[data-buy-variant="${vi}"]`).addEventListener("click", () => {
+      requireAuth(() => doBuyVariant(v));
+    });
   });
 
   container.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-async function doConfirmPurchase(mode, requestBody) {
-  const path = mode === "quantity" ? "/market/buy-exact-quantity" : "/market/invest-amount";
-  try {
-    const result = await api(path, { method: "POST", body: requestBody });
-    const numbers = result.vouchers.map((v) => v.number).join(", ");
-    toast(`Готово: ${result.total_quantity} УЕ за ${result.total_price.toFixed(2)} ₽. Куплены вексели: ${numbers} — смотрите «Мои векселя».`);
-    document.getElementById("quote-result").hidden = true;
-    loadListings();
-  } catch (err) {
-    if (err.payload?.error === "insufficient_market_supply") {
-      toast(`На рынке недостаточно предложений: максимум ${err.payload.best_available} УЕ.`, true);
-    } else {
-      toast(err.message, true);
+/** Покупает по очереди все объявления варианта через /market/buy-listing
+ *  (каждый вексель — своя фиксированная цена, единого «пакетного»
+ *  эндпоинта для произвольной комбинации на бэкенде нет). Если часть
+ *  предложений кто-то успел перекупить, сообщаем, что купилось. */
+async function doBuyVariant(variant) {
+  const bought = [];
+  const failed = [];
+  for (const item of variant.items) {
+    try {
+      const voucher = await api("/market/buy-listing", { method: "POST", body: { listing_id: item.id } });
+      bought.push(voucher);
+    } catch (err) {
+      failed.push({ item, message: err.message });
     }
+  }
+  if (bought.length) {
+    const numbers = bought.map((v) => v.number).join(", ");
+    const total = bought.reduce((s, v) => s + v.price_paid, 0);
+    toast(`Куплено ${bought.length} из ${variant.items.length}: ${numbers} на ${total.toFixed(2)} ₽ — смотрите «Мои векселя».`);
+  }
+  if (failed.length) {
+    toast(`Не удалось купить ${failed.length} ${failed.length === 1 ? "предложение" : "предложения"} из варианта (возможно, их уже купили) — список обновлён.`, true);
+  }
+  document.getElementById("quote-result").hidden = true;
+  loadListings();
+}
+
+async function runRangeSearch(mode, min, max, filters) {
+  if (Number.isNaN(min) || Number.isNaN(max)) { toast("Укажите числа диапазона.", true); return; }
+  if (max < min) { toast("«До» не может быть меньше «От».", true); return; }
+
+  const container = document.getElementById("quote-result");
+  container.hidden = false;
+  container.innerHTML = `<p class="empty-row">Подбираю варианты…</p>`;
+  container.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  try {
+    const listings = await api("/listings", { auth: false, query: { ...filters } });
+    const { variants, truncated } = buildRangeVariants(listings, mode, min, max);
+    renderVariants(variants, mode, { min, max }, truncated);
+  } catch (err) {
+    container.innerHTML = `<p class="empty-row">${err.message}</p>`;
   }
 }
 
-document.getElementById("find-by-quantity-form").addEventListener("submit", async (e) => {
+document.getElementById("find-by-quantity-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const form = e.target;
-  const quantity = parseInt(new FormData(form).get("quantity_needed"), 10);
+  const fd = new FormData(form);
+  const min = Number(fd.get("quantity_min"));
+  const max = Number(fd.get("quantity_max"));
   const filters = readCharacteristicsFields(form.querySelector("[data-filter-fields]"));
-  const body = { quantity_needed: quantity, characteristics: Object.keys(filters).length ? filters : null };
-  try {
-    const quote = await api("/market/quote/buy-exact-quantity", { method: "POST", body });
-    renderQuote(quote, "quantity", body);
-  } catch (err) { toast(err.message, true); }
+  runRangeSearch("quantity", min, max, filters);
 });
 
-document.getElementById("find-by-budget-form").addEventListener("submit", async (e) => {
+document.getElementById("find-by-budget-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const form = e.target;
-  const budget = Number(new FormData(form).get("budget_amount"));
+  const fd = new FormData(form);
+  const min = Number(fd.get("budget_min"));
+  const max = Number(fd.get("budget_max"));
   const filters = readCharacteristicsFields(form.querySelector("[data-filter-fields]"));
-  const body = { budget_amount: budget, characteristics: Object.keys(filters).length ? filters : null };
-  try {
-    const quote = await api("/market/quote/invest-amount", { method: "POST", body });
-    renderQuote(quote, "budget", body);
-  } catch (err) { toast(err.message, true); }
+  runRangeSearch("budget", min, max, filters);
 });
 
 /* ============================================================
@@ -949,6 +980,5 @@ async function loadProfile() {
 
 /* ---------------------------- Инициализация ---------------------------- */
 
-initAuthTabs();
 refreshAuthUI();
 loadListings();
