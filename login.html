@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Войти · Рынок углеродных единиц</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css" />
+<style>
+  /* Страница входа — центрированная карточка на фоне paper */
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: var(--paper);
+  }
+
+  .login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    text-decoration: none;
+  }
+  .login-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+  }
+  .login-brand-name {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--forest-deep);
+  }
+  .login-brand-sub {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 40px 36px 32px;
+    box-shadow: var(--shadow-modal);
+    text-align: center;
+  }
+
+  .login-title {
+    font-size: 22px;
+    margin-bottom: 24px;
+  }
+
+  /* Перекрываем display: none у [hidden] для форм,
+     чтобы tabbar-переключатель работал корректно */
+  .login-card form[hidden] {
+    display: none !important;
+  }
+
+  .auth-error {
+    margin-top: 8px;
+    color: var(--brick);
+    background: var(--brick-tint);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 13.5px;
+    text-align: left;
+  }
+
+  .login-footer {
+    margin-top: 24px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="login-page">
+
+  <!-- Логотип -->
+  <div class="login-brand">
+    <span class="seal" aria-hidden="true">
+      <svg viewBox="0 0 120 120"><path d="M 60,60 m -46,0 a 46,46 0 1,1 92,0 a 46,46 0 1,1 -92,0"/></svg>
+      <span class="seal-year">УЕ</span>
+    </span>
+    <span class="login-brand-text">
+      <span class="login-brand-name">Реестр рынка</span>
+      <span class="login-brand-sub">углеродных единиц</span>
+    </span>
+  </div>
+
+  <!-- Карточка входа / регистрации -->
+  <div class="login-card">
+    <h2 class="login-title">Добро пожаловать</h2>
+
+    <div class="tabbar" role="tablist">
+      <button class="tabbar-btn is-active" data-authtab="login" role="tab">Вход</button>
+      <button class="tabbar-btn" data-authtab="register" role="tab">Регистрация</button>
+    </div>
+
+    <!-- Форма входа -->
+    <form id="login-form" class="stack">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email" placeholder="your@email.com">
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+      </label>
+      <button class="btn btn--primary" type="submit">Войти</button>
+      <p class="hint">Демо-доступ: <code>buyer@example.com</code> или <code>seller@example.com</code>, пароль <code>demo1234</code></p>
+    </form>
+
+    <!-- Форма регистрации -->
+    <form id="register-form" class="stack" hidden>
+      <label class="field">
+        <span>Тип участника</span>
+        <select name="user_type" id="user-type-select">
+          <option value="INDIVIDUAL">Физическое лицо</option>
+          <option value="LEGAL_ENTITY">Юридическое лицо</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>ФИО / Название организации</span>
+        <input type="text" name="display_name" required placeholder="например, Иван Иванов">
+      </label>
+      <label class="field" id="inn-field" hidden>
+        <span>ИНН</span>
+        <input type="text" name="inn" placeholder="7701234567">
+      </label>
+      <label class="field" id="ogrn-field" hidden>
+        <span>ОГРН</span>
+        <input type="text" name="ogrn" placeholder="1027700123456">
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email" placeholder="your@email.com">
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input type="password" name="password" required autocomplete="new-password" placeholder="минимум 6 символов">
+      </label>
+      <button class="btn btn--primary" type="submit">Зарегистрироваться</button>
+    </form>
+
+    <p id="auth-error" class="auth-error" hidden></p>
+  </div>
+
+  <p class="login-footer">© Реестр рынка углеродных единиц</p>
+</div>
+
+<script src="/config.js"></script>
+<script>
+  const API_BASE_URL = (window.CARBON_MARKET_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+
+  function apiUrl(path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${API_BASE_URL}${normalizedPath}`;
+  }
+
+  // Если уже авторизован — сразу на главную
+  if (localStorage.getItem("cm_token")) {
+    window.location.replace("/");
+  }
+
+  // Переключение вкладок Вход / Регистрация
+  document.querySelectorAll("[data-authtab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-authtab]").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      const target = btn.dataset.authtab;
+      document.getElementById("login-form").hidden = target !== "login";
+      document.getElementById("register-form").hidden = target !== "register";
+      document.getElementById("auth-error").hidden = true;
+    });
+  });
+
+  // Показ/скрытие полей ИНН и ОГРН для юрлиц
+  document.getElementById("user-type-select").addEventListener("change", function () {
+    const isLegal = this.value === "LEGAL_ENTITY";
+    document.getElementById("inn-field").hidden = !isLegal;
+    document.getElementById("ogrn-field").hidden = !isLegal;
+  });
+
+  function showError(msg) {
+    const el = document.getElementById("auth-error");
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  async function apiFetch(path, body) {
+    const res = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) {
+      throw new Error(data?.detail || data?.error || `Ошибка ${res.status}`);
+    }
+    return data;
+  }
+
+  function onSuccess(data) {
+    localStorage.setItem("cm_token", data.token);
+    localStorage.setItem("cm_user", JSON.stringify({
+      id: data.user_id,
+      user_type: data.user_type,
+      display_name: data.display_name,
+    }));
+    window.location.replace("/");
+  }
+
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      const data = await apiFetch("/auth/login", {
+        email: fd.get("email"),
+        password: fd.get("password"),
+      });
+      onSuccess(data);
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  document.getElementById("register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      const data = await apiFetch("/auth/register", {
+        email: fd.get("email"),
+        password: fd.get("password"),
+        user_type: fd.get("user_type"),
+        display_name: fd.get("display_name"),
+        inn: fd.get("inn") || null,
+        ogrn: fd.get("ogrn") || null,
+      });
+      onSuccess(data);
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+</script>
+</body>
+</html>

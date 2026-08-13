@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Реестр · Рынок углеродных единиц</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ============== ШАПКА (как у обычных сайтов: логотип / навигация / профиль) ============== -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <button class="brand" data-view="market">
+      <span class="seal" aria-hidden="true">
+        <svg viewBox="0 0 120 120"><path d="M 60,60 m -46,0 a 46,46 0 1,1 92,0 a 46,46 0 1,1 -92,0"/></svg>
+        <span class="seal-year">УЕ</span>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Реестр рынка</span>
+        <span class="brand-sub">углеродных единиц</span>
+      </span>
+    </button>
+
+    <nav class="topnav">
+      <button class="topnav-item is-active" data-view="market">Витрина</button>
+      <button class="topnav-item" data-view="verify">Проверить вексель</button>
+      <button class="topnav-item" data-view="listings">Мои объявления</button>
+      <button class="topnav-item" data-view="vouchers">Мои векселя</button>
+      <button class="topnav-item" data-view="history">История</button>
+      <button class="topnav-item" data-view="profile">Профиль</button>
+    </nav>
+
+    <div class="auth-area">
+      <button class="btn btn--primary btn--sm" id="open-auth-btn">Войти</button>
+
+      <div class="user-chip" id="user-chip" hidden>
+        <button class="user-chip-btn" id="user-chip-btn">
+          <span class="user-chip-avatar" id="user-avatar">A</span>
+          <span class="user-chip-name" id="user-chip-name">—</span>
+          <svg class="chevron" viewBox="0 0 20 20" width="13" height="13"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="user-menu" id="user-menu" hidden>
+          <div class="user-menu-name" id="user-menu-name">—</div>
+          <div class="user-menu-type" id="user-menu-type">—</div>
+          <button class="user-menu-link" id="user-menu-profile">Мой профиль</button>
+          <button class="user-menu-logout" id="logout-btn">Выйти из аккаунта</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ---------- ВИТРИНА (публичная) ---------- -->
+  <section id="view-market" class="view is-active">
+
+    <div class="hero">
+      <div class="eyebrow">Углеродные единицы</div>
+      <h1>Покупайте и продавайте пронумерованные векселя на углеродные единицы</h1>
+      <p>На продажу выставляются не «сырые» единицы по цене за штуку, а уже выпущенные векселя — каждый со своим номером и фиксированной ценой за весь объём. У каждого векселя можно проверить продавца-эмитента и всех, через кого он прошёл, по <button class="link-inline" data-view="verify">его номеру</button>.</p>
+    </div>
+
+    <div class="finder">
+      <h2 class="finder-title">Найти предложение под вашу задачу</h2>
+      <div class="grid-2">
+        <form id="find-by-quantity-form" class="panel">
+          <h3>Нужен точный объём</h3>
+          <p class="panel-desc">Укажите, сколько углеродных единиц вам нужно — покажем лучшие подходящие предложения.</p>
+          <label class="field">
+            <span>Количество УЕ</span>
+            <input type="number" name="quantity_needed" min="0" step="1" required placeholder="например, 800">
+          </label>
+          <details class="filters">
+            <summary>Уточнить характеристики</summary>
+            <div class="filters-grid" data-filter-fields></div>
+          </details>
+          <button class="btn btn--primary" type="submit">Показать предложения</button>
+        </form>
+
+        <form id="find-by-budget-form" class="panel">
+          <h3>Есть сумма для покупки</h3>
+          <p class="panel-desc">Укажите бюджет — покажем, сколько единиц можно получить и по какой цене.</p>
+          <label class="field">
+            <span>Бюджет, ₽</span>
+            <input type="number" name="budget_amount" min="0" step="1" required placeholder="например, 100000">
+          </label>
+          <details class="filters">
+            <summary>Уточнить характеристики</summary>
+            <div class="filters-grid" data-filter-fields></div>
+          </details>
+          <button class="btn btn--primary" type="submit">Показать предложения</button>
+        </form>
+      </div>
+
+      <div id="quote-result" class="quote-result" hidden></div>
+    </div>
+
+    <div class="view-head view-head--tight">
+      <div>
+        <div class="eyebrow">Все продавцы</div>
+        <h2>Актуальные предложения</h2>
+      </div>
+      <div class="market-controls">
+        <select id="sort-by">
+          <option value="price">Сначала дешевле</option>
+          <option value="quantity">Сначала больше объём</option>
+          <option value="created_at">Сначала новые</option>
+        </select>
+        <button class="btn btn--ghost btn--sm" id="refresh-listings">Обновить</button>
+      </div>
+    </div>
+
+    <details class="filters filters--standalone">
+      <summary>Фильтр по характеристикам</summary>
+      <div class="filters-grid" data-filter-fields="browse"></div>
+      <button class="btn btn--ghost btn--sm" type="button" id="apply-browse-filter">Применить фильтр</button>
+    </details>
+
+    <div id="listings-grid" class="cards-grid"></div>
+  </section>
+
+  <!-- ---------- ПРОВЕРИТЬ ВЕКСЕЛЬ ПО НОМЕРУ (публично) ---------- -->
+  <section id="view-verify" class="view">
+    <div class="hero">
+      <div class="eyebrow">Реестр векселей</div>
+      <h1>Проверить вексель по номеру</h1>
+      <p>Введите номер векселя — увидите его паспорт: кто выпустил, у кого он был, кто владеет им сейчас.</p>
+    </div>
+
+    <form id="verify-form" class="panel verify-form">
+      <label class="field">
+        <span>Номер векселя</span>
+        <input type="text" name="number" placeholder="например, CM-000020" autocomplete="off" required>
+      </label>
+      <button class="btn btn--primary" type="submit">Найти</button>
+    </form>
+
+    <div id="verify-result"></div>
+  </section>
+
+  <!-- ---------- МОИ ОБЪЯВЛЕНИЯ (требует входа) ---------- -->
+  <section id="view-listings" class="view">
+    <header class="view-head">
+      <div>
+        <div class="eyebrow">Продавец</div>
+        <h2>Мои объявления</h2>
+      </div>
+    </header>
+
+    <div id="listings-authgate" class="authgate" hidden>
+      <p>Чтобы выставлять и просматривать свои объявления, войдите в аккаунт.</p>
+      <button class="btn btn--primary" data-open-auth>Войти или зарегистрироваться</button>
+    </div>
+
+    <div id="listings-authcontent">
+      <div class="panel">
+        <div class="panel-head"><h3>1. Выпустить новый вексель</h3></div>
+        <p class="panel-desc">Вексель выпускается из ваших единиц в реестре и получает уникальный номер. Пока вы его не выставите на продажу (шаг 2), он просто числится за вами.</p>
+        <form id="mint-voucher-form" class="stack">
+          <div class="filters-grid" data-filter-fields="mint"></div>
+
+          <label class="field">
+            <span>Доступный остаток по этим характеристикам</span>
+            <button class="btn btn--ghost btn--sm" type="button" id="check-capacity-btn">Проверить остаток</button>
+          </label>
+          <p id="capacity-result" class="hint"></p>
+
+          <label class="field">
+            <span>Сколько УЕ включить в вексель</span>
+            <input type="number" name="quantity" min="0" step="1" required>
+          </label>
+
+          <button class="btn btn--primary" type="submit">Выпустить вексель</button>
+        </form>
+      </div>
+
+      <div class="panel" style="margin-top:18px">
+        <div class="panel-head"><h3>2. Выставить вексель на продажу</h3></div>
+        <p class="panel-desc">Выберите уже выпущенный вексель (свой или ранее купленный) и назначьте единую цену за него целиком — не за единицу.</p>
+        <div id="my-unlisted-vouchers" class="unlisted-vouchers"></div>
+      </div>
+
+      <h3 class="section-label" style="margin-top:28px">Мои объявления</h3>
+      <div id="my-listings-table" class="ledger"></div>
+    </div>
+  </section>
+
+  <!-- ---------- МОИ ВЕКСЕЛЯ (требует входа) ---------- -->
+  <section id="view-vouchers" class="view">
+    <header class="view-head">
+      <div>
+        <div class="eyebrow">Покупатель</div>
+        <h2>Мои векселя</h2>
+      </div>
+    </header>
+
+    <div id="vouchers-authgate" class="authgate" hidden>
+      <p>Чтобы видеть свои векселя и обналичивать их, войдите в аккаунт.</p>
+      <button class="btn btn--primary" data-open-auth>Войти или зарегистрироваться</button>
+    </div>
+
+    <div id="vouchers-authcontent">
+      <p class="panel-desc" style="max-width:60ch;margin-bottom:24px">
+        Каждый вексель, который вы держите — свежевыпущенный или купленный на рынке — имеет свой номер.
+        Обналичьте его, когда единицы должны реально поступить на баланс, либо выставьте на продажу дальше.
+      </p>
+      <div id="vouchers-list" class="cards-grid"></div>
+    </div>
+  </section>
+  <!-- ---------- ИСТОРИЯ (требует входа) ---------- -->
+  <section id="view-history" class="view">
+    <header class="view-head">
+      <div>
+        <div class="eyebrow">Активность</div>
+        <h2>История сделок</h2>
+      </div>
+    </header>
+
+    <div id="history-authgate" class="authgate" hidden>
+      <p>Чтобы видеть историю ваших сделок, войдите в аккаунт.</p>
+      <button class="btn btn--primary" data-open-auth>Войти или зарегистрироваться</button>
+    </div>
+
+    <div id="history-authcontent">
+      <p class="panel-desc" style="max-width:60ch;margin-bottom:24px">
+        Вся ваша активность на рынке: покупки, продажи по вашим
+        объявлениям, создание и снятие объявлений, обналичивание и отмена
+        векселей — от новых к старым.
+      </p>
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </section>
+
+  <!-- ---------- ПРОФИЛЬ (требует входа) ---------- -->
+  <section id="view-profile" class="view">
+    <header class="view-head">
+      <div>
+        <div class="eyebrow">Аккаунт</div>
+        <h2>Мой профиль</h2>
+      </div>
+    </header>
+
+    <div id="profile-authgate" class="authgate" hidden>
+      <p>Чтобы видеть свой профиль и баланс, войдите в аккаунт.</p>
+      <button class="btn btn--primary" data-open-auth>Войти или зарегистрироваться</button>
+    </div>
+
+    <div id="profile-authcontent">
+      <div id="profile-content">
+        <p class="empty-row">Загружаю…</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============== МОДАЛКА ПРОФИЛЯ ПРОДАВЦА ============== -->
+<div class="modal-overlay" id="seller-modal-overlay" hidden>
+  <div class="modal seller-modal" role="dialog" aria-modal="true" aria-labelledby="seller-modal-title">
+    <button class="modal-close" id="close-seller-btn" aria-label="Закрыть">✕</button>
+    <div id="seller-modal-content">
+      <p class="empty-row">Загружаю…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============== МОДАЛКА АВТОРИЗАЦИИ (скрыта, открывается кнопкой «Войти») ============== -->
+<div class="modal-overlay" id="auth-modal-overlay" hidden>
+  <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+    <button class="modal-close" id="close-auth-btn" aria-label="Закрыть">✕</button>
+
+    <div class="seal seal--lg" aria-hidden="true">
+      <svg viewBox="0 0 120 120"><path d="M 60,60 m -46,0 a 46,46 0 1,1 92,0 a 46,46 0 1,1 -92,0"/></svg>
+      <span class="seal-year">УЕ</span>
+    </div>
+    <h2 id="auth-modal-title" class="auth-title">Вход в аккаунт</h2>
+    <p id="auth-modal-note" class="auth-sub" hidden></p>
+
+    <div class="tabbar" role="tablist">
+      <button class="tabbar-btn is-active" data-authtab="login" role="tab">Вход</button>
+      <button class="tabbar-btn" data-authtab="register" role="tab">Регистрация</button>
+    </div>
+
+    <form id="login-form" class="stack">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button class="btn btn--primary" type="submit">Войти</button>
+    </form>
+
+    <form id="register-form" class="stack" hidden>
+      <label class="field">
+        <span>Тип участника</span>
+        <select name="user_type">
+          <option value="INDIVIDUAL">Физическое лицо</option>
+          <option value="LEGAL_ENTITY">Юридическое лицо</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>ФИО / Название организации</span>
+        <input type="text" name="display_name" required>
+      </label>
+      <label class="field" data-legal-only hidden>
+        <span>ИНН</span>
+        <input type="text" name="inn">
+      </label>
+      <label class="field" data-legal-only hidden>
+        <span>ОГРН</span>
+        <input type="text" name="ogrn">
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input type="password" name="password" required autocomplete="new-password">
+      </label>
+      <button class="btn btn--primary" type="submit">Зарегистрироваться</button>
+    </form>
+
+    <p id="auth-error" class="auth-error" hidden></p>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<script src="/config.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
