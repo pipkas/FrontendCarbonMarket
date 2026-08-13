@@ -48,6 +48,9 @@ const LISTING_STATUS_CSS = { ACTIVE: "active", SOLD: "sold_out", CANCELLED: "can
 const VOUCHER_STATUS_LABELS = { ACTIVE: "Активен", REDEEMED: "Погашен" };
 const VOUCHER_STATUS_CSS = { ACTIVE: "active", REDEEMED: "sold_out" };
 
+const RANGE_VARIANT_DISPLAY_LIMIT = 5;
+const RANGE_VARIANT_SEARCH_LIMIT = 120;
+
 /* ---------------------------- API-хелпер ---------------------------- */
 
 async function api(path, { method = "GET", body, auth = true, query } = {}) {
@@ -300,8 +303,8 @@ document.getElementById("refresh-listings").addEventListener("click", loadListin
 document.getElementById("apply-browse-filter").addEventListener("click", loadListings);
 
 /* ============================================================
-   ПОДБОР ВСЕХ ВАРИАНТОВ В ЗАДАННОМ ДИАПАЗОНЕ (объём или бюджет) —
-   вместо одной «оптимальной» раскладки показываем ВСЕ комбинации
+   ПОДБОР ПЕРВЫХ ВАРИАНТОВ В ЗАДАННОМ ДИАПАЗОНЕ (объём или бюджет) —
+   вместо одной «оптимальной» раскладки показываем до 5 разных
    предложений, чья сумма (объём или цена) попадает в диапазон.
    ============================================================ */
 
@@ -318,21 +321,20 @@ function quoteOfferCard(offer, idx) {
 
   return `
     <div class="qi" id="qi-${idx}">
-      <button class="qi-head" type="button" onclick="toggleQi('${idx}')">
+      <div class="qi-head qi-head--static">
         <div class="qi-left">
           <div class="qi-project">${offer.characteristics.project_name || "Без названия проекта"} · ${offer.voucher_number}</div>
           <div class="qi-seller">
-            <button class="qi-seller-link" type="button" onclick="event.stopPropagation();openSellerProfile('${offer.seller_id}')">${offer.seller_display_name}</button>
+            <button class="qi-seller-link" type="button" onclick="openSellerProfile('${offer.seller_id}')">${offer.seller_display_name}</button>
           </div>
         </div>
         <div class="qi-right">
           <span class="qi-qty">${offer.quantity} УЕ</span>
           <span class="qi-price">${offer.price_per_unit.toFixed(2)} ₽/ед</span>
           <span class="qi-subtotal">${offer.fixed_price.toFixed(2)} ₽</span>
-          <svg class="qi-chevron" viewBox="0 0 20 20" width="14" height="14"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-      </button>
-      <div class="qi-body" id="qi-body-${idx}" hidden>
+      </div>
+      <div class="qi-body">
         ${tags.length ? `<div class="quote-tags" style="margin-bottom:8px">${tags.map((t) => `<span class="tag">${t}</span>`).join("")}</div>` : ""}
         ${details.map((d) => `<div class="qi-detail-row">${d}</div>`).join("")}
         <div class="qi-detail-row">Вексель: ${voucherNumberBadge(offer.voucher_number)}</div>
@@ -343,18 +345,18 @@ function quoteOfferCard(offer, idx) {
   `;
 }
 
-function toggleQi(idx) {
-  const body = document.getElementById(`qi-body-${idx}`);
-  const chevron = document.querySelector(`#qi-${idx} .qi-chevron`);
-  body.hidden = !body.hidden;
-  if (chevron) chevron.style.transform = body.hidden ? "" : "rotate(180deg)";
-}
-
 function pluralizeVoucher(n) {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return "вексель";
   if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "векселя";
   return "векселей";
+}
+
+function pluralizeOffer(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "предложение";
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "предложения";
+  return "предложений";
 }
 
 /** Перебор всех подмножеств listings, чья сумма по sumFn попадает в
@@ -381,7 +383,7 @@ function findCombosInRange(listings, sumFn, min, max, maxResults) {
   let truncated = false;
 
   function dfs(idx, chosen, sum) {
-    if (results.length >= maxResults) return;
+    if (results.length >= maxResults) { truncated = true; return; }
     if (visited > VISIT_LIMIT) { truncated = true; return; }
     visited++;
     if (idx >= n) return;
@@ -395,7 +397,7 @@ function findCombosInRange(listings, sumFn, min, max, maxResults) {
       chosen.push(idx);
       if (newSum >= min) {
         results.push(chosen.slice());
-        if (results.length >= maxResults) { chosen.pop(); return; }
+        if (results.length >= maxResults) { truncated = true; chosen.pop(); return; }
       }
       dfs(idx + 1, chosen, newSum);
       chosen.pop();
@@ -411,7 +413,45 @@ function findCombosInRange(listings, sumFn, min, max, maxResults) {
   return { combos: results, truncated: truncated || visited > VISIT_LIMIT };
 }
 
-/** Собирает все варианты покупки (комбинации объявлений), чей суммарный
+function variantCompositionKey(variant) {
+  return variant.items.map((item) => item.id).sort().join("|");
+}
+
+function variantSummaryKey(variant) {
+  return `${variant.total_quantity.toFixed(6)}|${variant.total_price.toFixed(2)}`;
+}
+
+function selectDisplayVariants(variants, limit) {
+  const seenCompositions = new Set();
+  const unique = [];
+  variants.forEach((variant) => {
+    const key = variantCompositionKey(variant);
+    if (!seenCompositions.has(key)) {
+      seenCompositions.add(key);
+      unique.push(variant);
+    }
+  });
+
+  const diverse = [];
+  const repeatedSummary = [];
+  const seenSummaries = new Set();
+  unique.forEach((variant) => {
+    const key = variantSummaryKey(variant);
+    if (!seenSummaries.has(key)) {
+      seenSummaries.add(key);
+      diverse.push(variant);
+    } else {
+      repeatedSummary.push(variant);
+    }
+  });
+
+  return {
+    variants: [...diverse, ...repeatedSummary].slice(0, limit),
+    totalUnique: unique.length,
+  };
+}
+
+/** Собирает варианты покупки (комбинации объявлений), чей суммарный
  *  объём (mode="quantity") или суммарная цена (mode="budget") попадает
  *  в диапазон [min, max]. */
 function buildRangeVariants(listings, mode, min, max) {
@@ -424,8 +464,7 @@ function buildRangeVariants(listings, mode, min, max) {
   const candidates = sorted.slice(0, CANDIDATE_CAP);
   const cappedByCandidates = sorted.length > CANDIDATE_CAP;
 
-  const MAX_VARIANTS = 40;
-  const { combos, truncated } = findCombosInRange(candidates, sumFn, min, max, MAX_VARIANTS);
+  const { combos, truncated } = findCombosInRange(candidates, sumFn, min, max, RANGE_VARIANT_SEARCH_LIMIT);
 
   const variants = combos.map((idxList) => {
     const items = idxList.map((i) => candidates[i]);
@@ -444,14 +483,20 @@ function buildRangeVariants(listings, mode, min, max) {
     variants.sort((a, b) => a.total_price - b.total_price || a.items.length - b.items.length);
   }
 
-  return { variants, truncated: truncated || cappedByCandidates };
+  const display = selectDisplayVariants(variants, RANGE_VARIANT_DISPLAY_LIMIT);
+  return {
+    variants: display.variants,
+    truncated: truncated || cappedByCandidates || display.totalUnique > display.variants.length,
+  };
 }
 
 function toggleVariant(vi) {
   const body = document.getElementById(`variant-body-${vi}`);
   const chevron = document.querySelector(`#variant-${vi} .variant-chevron`);
+  const head = document.querySelector(`#variant-${vi} .variant-head`);
   body.hidden = !body.hidden;
   if (chevron) chevron.style.transform = body.hidden ? "" : "rotate(180deg)";
+  if (head) head.setAttribute("aria-expanded", String(!body.hidden));
 }
 
 function renderVariants(variants, mode, range, truncated) {
@@ -472,14 +517,14 @@ function renderVariants(variants, mode, range, truncated) {
     const perUnit = v.total_quantity ? v.total_price / v.total_quantity : 0;
     return `
       <div class="variant-card" id="variant-${vi}">
-        <button class="variant-head" type="button" onclick="toggleVariant(${vi})">
+        <button class="variant-head" type="button" onclick="toggleVariant(${vi})" aria-expanded="false" aria-controls="variant-body-${vi}">
           <div class="variant-left">
-            <div class="variant-title">Вариант ${vi + 1}</div>
-            <div class="variant-meta">${v.items.length} ${pluralizeVoucher(v.items.length)} · в среднем ${perUnit.toFixed(2)} ₽/УЕ</div>
+            <div class="variant-title">Предложение ${vi + 1}</div>
+            <div class="variant-meta">${v.items.length} ${pluralizeVoucher(v.items.length)} в составе · в среднем ${perUnit.toFixed(2)} ₽/УЕ</div>
           </div>
           <div class="variant-right">
-            <span class="variant-qty">${v.total_quantity} УЕ</span>
             <span class="variant-price">${v.total_price.toFixed(2)} ₽</span>
+            <span class="variant-qty">${v.total_quantity} УЕ</span>
             <svg class="variant-chevron" viewBox="0 0 20 20" width="14" height="14"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
         </button>
@@ -496,10 +541,10 @@ function renderVariants(variants, mode, range, truncated) {
 
   container.innerHTML = `
     <div class="quote-head">
-      <h3>Все подходящие варианты</h3>
-      <div class="quote-total">${variants.length} ${variants.length === 1 ? "вариант" : "вариантов"} · ${rangeLabel}</div>
+      <h3>${truncated ? "Первые подходящие предложения" : "Подходящие предложения"}</h3>
+      <div class="quote-total">${variants.length} ${pluralizeOffer(variants.length)} · ${rangeLabel}</div>
     </div>
-    ${truncated ? `<div class="quote-warning">Показаны не все возможные комбинации — предложений слишком много для полного перебора. Сузьте диапазон или уточните характеристики, чтобы увидеть более точный список.</div>` : ""}
+    ${truncated ? `<div class="quote-warning">Показаны первые ${RANGE_VARIANT_DISPLAY_LIMIT} разных предложений. Сузьте диапазон или уточните характеристики, чтобы получить другой набор.</div>` : ""}
     <div class="variants-list">${variantsHtml}</div>
   `;
 

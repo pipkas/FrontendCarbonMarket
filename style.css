@@ -263,7 +263,7 @@ input, select { font-family: var(--font-body); }
 .quote-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .quote-more { font-size: 12.5px; color: var(--ink-soft); }
 
-/* ---------------- ВАРИАНТЫ РАСКЛАДКИ (все комбинации в диапазоне) — аккордеон ---------------- */
+/* ---------------- ВАРИАНТЫ РАСКЛАДКИ (первые комбинации в диапазоне) — аккордеон ---------------- */
 .variants-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 .variant-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
 .variant-head {
@@ -319,7 +319,7 @@ input, select { font-family: var(--font-body); }
 .toast--error { background: var(--brick); }
 .toast--success { background: var(--forest); }
 
-/* ---------------- QUOTE ACCORDION ITEMS (qi) ---------------- */
+/* ---------------- СОСТАВ ПРЕДЛОЖЕНИЯ: ВЕКСЕЛЯ ВНУТРИ ВАРИАНТА ---------------- */
 .qi-list { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
 .qi {
   background: var(--paper); border: 1px solid var(--line-strong);
@@ -327,10 +327,10 @@ input, select { font-family: var(--font-body); }
 }
 .qi-head {
   width: 100%; display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; cursor: pointer; text-align: left;
+  padding: 12px 14px; text-align: left;
   background: none; border: none; font-family: inherit;
 }
-.qi-head:hover { background: var(--forest-tint); }
+.qi-head--static { align-items: flex-start; cursor: default; }
 .qi-left { flex: 1; min-width: 0; }
 .qi-project { font-weight: 600; font-size: 14px; color: var(--forest-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qi-seller { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
@@ -340,7 +340,6 @@ input, select { font-family: var(--font-body); }
 .qi-qty { font-family: var(--font-mono); font-size: 13px; color: var(--ink-soft); }
 .qi-price { font-family: var(--font-mono); font-size: 13px; color: var(--ink-soft); }
 .qi-subtotal { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--forest-deep); }
-.qi-chevron { color: var(--ink-soft); transition: transform .15s ease; flex-shrink: 0; }
 .qi-body { padding: 12px 14px 14px; border-top: 1px solid var(--line); background: var(--surface); }
 .qi-detail-row { font-size: 12.5px; color: var(--ink-soft); line-height: 1.7; }
 .qi-more { font-size: 12.5px; color: var(--ink-soft); margin: 0; }
@@ -448,6 +447,9 @@ input, select { font-family: var(--font-body); }
   .page { padding: 24px 16px 60px; }
   .grid-2, .field-row, .filters-grid { grid-template-columns: 1fr; }
   h1 { font-size: 26px; }
+  .quote-result { padding: 18px; }
+  .variant-head, .qi-head { align-items: flex-start; flex-direction: column; }
+  .variant-right, .qi-right { width: 100%; justify-content: space-between; flex-wrap: wrap; }
   .verify-form { flex-direction: column; align-items: stretch; }
   .uv-row { flex-direction: column; align-items: stretch; }
 }
