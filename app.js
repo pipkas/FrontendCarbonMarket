@@ -69,7 +69,10 @@ async function api(path, { method = "GET", body, auth = true, query } = {}) {
     if (qs) url += (url.includes("?") ? "&" : "?") + qs;
   }
 
-  const headers = { "Content-Type": "application/json" };
+  const headers = {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true"
+    };
   if (auth && state.token) headers["Authorization"] = `Bearer ${state.token}`;
 
   const res = await fetch(apiUrl(url), { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
