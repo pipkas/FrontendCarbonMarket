@@ -4,7 +4,6 @@
    ========================================================================== */
 
 const API_BASE_URL = (window.CARBON_MARKET_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
-
 function apiUrl(path) {
   if (/^https?:\/\//i.test(path)) return path;
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
