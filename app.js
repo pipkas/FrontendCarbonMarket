@@ -18,7 +18,7 @@ const state = {
 
 // Если нет токена — перенаправляем на страницу входа
 if (!state.token) {
-  window.location.replace("/login.html");
+  window.location.replace("login.html");
 }
 
 // Действие, отложенное до успешного входа (например, "купить", если
@@ -84,7 +84,7 @@ async function api(path, { method = "GET", body, auth = true, query } = {}) {
     // Токен истёк/невалиден — очищаем и перенаправляем на страницу входа.
     localStorage.removeItem("cm_token");
     localStorage.removeItem("cm_user");
-    window.location.replace("/login.html");
+    window.location.replace("login.html");
   }
 
   if (!res.ok) {
@@ -232,7 +232,7 @@ function handleLoggedOut() {
   state.user = null;
   localStorage.removeItem("cm_token");
   localStorage.removeItem("cm_user");
-  window.location.replace("/login.html");
+  window.location.replace("login.html");
 }
 
 function refreshAuthUI() {
