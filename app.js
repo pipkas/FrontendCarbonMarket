@@ -361,7 +361,14 @@ function pluralizeVoucher(n) {
  *  [min, max] — с отсечением веток (по максимально возможной сумме
  *  оставшихся элементов) и с ограничением числа найденных вариантов /
  *  посещённых узлов, чтобы не подвесить браузер на большом наборе
- *  предложений. listings должны быть заранее отсортированы по sumFn. */
+ *  предложений. listings должны быть заранее отсортированы по sumFn.
+ *
+ *  ВАЖНО: результат для каждой комбинации фиксируется РОВНО ОДИН РАЗ —
+ *  сразу после того, как в неё добавлен последний элемент. Раньше
+ *  проверка «подходит ли текущий набор» стояла в начале каждого вызова
+ *  dfs, и при пропуске элементов (ветка «не берём») один и тот же уже
+ *  готовый набор перепроверялся и записывался заново на каждом шаге —
+ *  из-за этого один и тот же вариант дублировался в списке результатов. */
 function findCombosInRange(listings, sumFn, min, max, maxResults) {
   const values = listings.map(sumFn);
   const n = values.length;
@@ -377,19 +384,26 @@ function findCombosInRange(listings, sumFn, min, max, maxResults) {
     if (results.length >= maxResults) return;
     if (visited > VISIT_LIMIT) { truncated = true; return; }
     visited++;
-    if (sum > max) return; // уже перебор — дальше только больше
-    if (chosen.length && sum >= min) {
-      results.push(chosen.slice());
-      if (results.length >= maxResults) return;
-    }
     if (idx >= n) return;
     if (sum + suffixMax[idx] < min) return; // даже все оставшиеся не доберут до min
 
-    chosen.push(idx);
-    dfs(idx + 1, chosen, sum + values[idx]);
-    chosen.pop();
-    if (results.length >= maxResults) return;
+    // Вариант «берём текущий элемент» — фиксируем результат ровно здесь,
+    // один раз, сразу после добавления элемента, а не на каждом
+    // последующем шаге рекурсии.
+    const newSum = sum + values[idx];
+    if (newSum <= max) {
+      chosen.push(idx);
+      if (newSum >= min) {
+        results.push(chosen.slice());
+        if (results.length >= maxResults) { chosen.pop(); return; }
+      }
+      dfs(idx + 1, chosen, newSum);
+      chosen.pop();
+      if (results.length >= maxResults) return;
+    }
 
+    // Вариант «пропускаем текущий элемент» — набор не меняется, поэтому
+    // здесь ничего не записываем, просто идём дальше.
     dfs(idx + 1, chosen, sum);
   }
 
@@ -433,6 +447,13 @@ function buildRangeVariants(listings, mode, min, max) {
   return { variants, truncated: truncated || cappedByCandidates };
 }
 
+function toggleVariant(vi) {
+  const body = document.getElementById(`variant-body-${vi}`);
+  const chevron = document.querySelector(`#variant-${vi} .variant-chevron`);
+  body.hidden = !body.hidden;
+  if (chevron) chevron.style.transform = body.hidden ? "" : "rotate(180deg)";
+}
+
 function renderVariants(variants, mode, range, truncated) {
   const container = document.getElementById("quote-result");
   container.hidden = false;
@@ -450,16 +471,24 @@ function renderVariants(variants, mode, range, truncated) {
   const variantsHtml = variants.map((v, vi) => {
     const perUnit = v.total_quantity ? v.total_price / v.total_quantity : 0;
     return `
-      <div class="variant-card">
-        <div class="variant-head">
-          <div class="variant-title">Вариант ${vi + 1}</div>
-          <div class="variant-total">${v.total_quantity} УЕ · ${v.total_price.toFixed(2)} ₽</div>
-        </div>
-        <div class="variant-meta">${v.items.length} ${pluralizeVoucher(v.items.length)} · в среднем ${perUnit.toFixed(2)} ₽/УЕ</div>
-        <div class="qi-list">${v.items.map((o, oi) => quoteOfferCard(o, `${vi}-${oi}`)).join("")}</div>
-        <div class="quote-foot" style="margin-top:14px">
-          <span></span>
-          <button class="btn btn--primary btn--sm" type="button" data-buy-variant="${vi}">Купить этот вариант · ${v.total_price.toFixed(2)} ₽</button>
+      <div class="variant-card" id="variant-${vi}">
+        <button class="variant-head" type="button" onclick="toggleVariant(${vi})">
+          <div class="variant-left">
+            <div class="variant-title">Вариант ${vi + 1}</div>
+            <div class="variant-meta">${v.items.length} ${pluralizeVoucher(v.items.length)} · в среднем ${perUnit.toFixed(2)} ₽/УЕ</div>
+          </div>
+          <div class="variant-right">
+            <span class="variant-qty">${v.total_quantity} УЕ</span>
+            <span class="variant-price">${v.total_price.toFixed(2)} ₽</span>
+            <svg class="variant-chevron" viewBox="0 0 20 20" width="14" height="14"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </button>
+        <div class="variant-body" id="variant-body-${vi}" hidden>
+          <div class="qi-list">${v.items.map((o, oi) => quoteOfferCard(o, `${vi}-${oi}`)).join("")}</div>
+          <div class="quote-foot" style="margin-top:14px">
+            <span></span>
+            <button class="btn btn--primary btn--sm" type="button" data-buy-variant="${vi}">Купить этот вариант · ${v.total_price.toFixed(2)} ₽</button>
+          </div>
         </div>
       </div>
     `;
@@ -475,7 +504,8 @@ function renderVariants(variants, mode, range, truncated) {
   `;
 
   variants.forEach((v, vi) => {
-    container.querySelector(`[data-buy-variant="${vi}"]`).addEventListener("click", () => {
+    container.querySelector(`[data-buy-variant="${vi}"]`).addEventListener("click", (e) => {
+      e.stopPropagation();
       requireAuth(() => doBuyVariant(v));
     });
   });
